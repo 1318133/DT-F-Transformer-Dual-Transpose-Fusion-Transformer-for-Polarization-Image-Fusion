@@ -6,6 +6,9 @@ DT-F Transformer: Dual Transpose Fusion Transformer for Polarization Image Fusio
 # DT-F Transformer
 The model of DT-F-Transformer has been uploaded as 'palfu.py'.
 
+# Dataset
+Please refer to the website "https://github.com/1318133/PIF-dataset" for the dataset related to the paper.
+
 # Reference
 @article{liu2024dt,  
   title={DT-F Transformer: Dual transpose fusion transformer for polarization image fusion},  
