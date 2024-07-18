@@ -120,8 +120,7 @@ class Attention_fuse(nn.Module):
         self.y3 = nn.Conv2d(dim, dim, kernel_size=3, stride=1, padding=1)
         self.f3 = nn.Conv2d(dim, dim, kernel_size=3, stride=1, padding=1)
         self.f3_2 = nn.Conv2d(dim, dim, kernel_size=3, stride=1, padding=1)
-        # self.qkv_dwconv = nn.Conv2d(dim*3, dim*3, kernel_size=3, stride=1, padding=1, groups=dim*3)
-        # self.project_out = nn.Conv2d(dim*2, dim, kernel_size=1, bias=bias)
+
         self.project_out = nn.Conv2d(dim*2, dim, kernel_size=3, stride=1, padding=1)
 
 
@@ -159,74 +158,6 @@ class Attention_fuse(nn.Module):
 
         out = self.project_out(out)#(outc)
         return out
-
-############Fusion
-class Dual_Attention(nn.Module):
-    def __init__(self, dim, num_heads, bias):
-        super(Dual_Attention, self).__init__()
-        self.num_heads = num_heads
-        self.temperature = nn.Parameter(torch.ones(num_heads, 1, 1))
-
-        self.qkv = nn.Conv2d(dim, dim*3, kernel_size=1, bias=bias)
-        self.qkv_dwconv = nn.Conv2d(dim*3, dim*3, kernel_size=3, stride=1, padding=1, groups=dim*3, bias=bias)
-        self.project_out = nn.Conv2d(dim, dim, kernel_size=1, bias=bias)
-        # self.project_out = nn.Conv2d(dim, dim, kernel_size=3, stride=1, padding=1, bias=bias)
-
-        self.temperature2 = nn.Parameter(torch.ones(num_heads, 1, 1))
-
-        self.qkv2 = nn.Conv2d(dim, dim*3, kernel_size=1, bias=bias)
-        self.qkv_dwconv2 = nn.Conv2d(dim*3, dim*3, kernel_size=3, stride=1, padding=1, groups=dim*3, bias=bias)
-        self.project_out2 = nn.Conv2d(dim, dim, kernel_size=1, bias=bias)
-        # self.project_out2 = nn.Conv2d(dim, dim, kernel_size=3, stride=1, padding=1, bias=bias)
-
-        self.block_out = nn.Conv2d(dim*2, dim, kernel_size=1, bias=bias)
-        # self.block_out = nn.Conv2d(dim*2, dim, kernel_size=3, stride=1, padding=1, bias=bias)
-        
-
-
-    def forward(self, x,y):
-        b,c,h,w = x.shape
-
-        qkv = self.qkv_dwconv(self.qkv(x))
-        q,k,v = qkv.chunk(3, dim=1)   
-        
-        q = rearrange(q, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-        k = rearrange(k, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-        v = rearrange(v, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-
-        q = torch.nn.functional.normalize(q, dim=-1)
-        k = torch.nn.functional.normalize(k, dim=-1)
-
-
-        qkv2 = self.qkv_dwconv2(self.qkv2(y))
-        q2,k2,v2 = qkv2.chunk(3, dim=1)   
-        
-        q2 = rearrange(q2, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-        k2 = rearrange(k2, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-        v2 = rearrange(v2, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-
-        q2 = torch.nn.functional.normalize(q2, dim=-1)
-        k2 = torch.nn.functional.normalize(k2, dim=-1)
-
-
-        attn = (q @ k2.transpose(-2, -1)) * self.temperature
-        attn = attn.softmax(dim=-1)
-
-        out = (attn @ v)
-        out = rearrange(out, 'b head c (h w) -> b (head c) h w', head=self.num_heads, h=h, w=w)
-        out = self.project_out(out)+x
-
-
-        attn2 = (q2 @ k.transpose(-2, -1)) * self.temperature2
-        attn2 = attn2.softmax(dim=-1)
-
-        out2 = (attn2 @ v2)
-        out2 = rearrange(out2, 'b head c (h w) -> b (head c) h w', head=self.num_heads, h=h, w=w)
-        out2 = self.project_out2(out2)+y
-
-        out_f = torch.cat((out,out2),dim=1)
-        out_f = self.block_out(out_f)
-        return out_f
 
 
 ##########################################################################
