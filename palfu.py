@@ -173,7 +173,7 @@ class TransformerBlock(nn.Module):
         self.ffn = FeedForward(dim)
 
     def forward(self, x,y,f):
-        x = f + self.attn(self.norm1(x),self.norm12(y),self.norm13(f))
+        x = x + self.attn(self.norm1(x),self.norm12(y),self.norm13(f))
         x = x + self.ffn(self.norm2(x))
 
         return x
